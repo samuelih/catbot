@@ -32,19 +32,26 @@ PCA9685_OUTDRV = 0x04
 PCA9685_OSC_FREQ = 25000000.0
 
 # --- Motor PWM ---
-MOTOR_PWM_FREQ = 100  # Hz - frequency for motor PWM
+MOTOR_PWM_FREQ = 1600  # Hz - Adafruit Motor HAT default
 
-# --- TB6612FNG Channel Mapping ---
-# PCA9685 channel -> TB6612FNG pin
-# Motor A = Left Motor
-MOTOR_A_PWM = 0   # PWMA - speed control
-MOTOR_A_IN2 = 1   # AIN2 - direction pin 2
-MOTOR_A_IN1 = 2   # AIN1 - direction pin 1
+# --- TB6612FNG Channel Mapping (Waveshare JetBot) ---
+# The Waveshare JetBot expansion board uses Adafruit Motor HAT-style wiring.
+# PWM speed control is on channels 8/13 (Adafruit convention).
+# Direction is driven on BOTH Adafruit channels (9-12) AND low channels (0-3).
+#
+# Motor A = Left Motor (Adafruit Motor 1)
+MOTOR_A_PWM = 8    # Speed control (Adafruit ch8)
+MOTOR_A_IN2 = 9    # Direction pin 2 (Adafruit ch9)
+MOTOR_A_IN1 = 10   # Direction pin 1 (Adafruit ch10)
+MOTOR_A_INA = 1    # Waveshare low direction channel
+MOTOR_A_INB = 0    # Waveshare low direction channel
 
-# Motor B = Right Motor
-MOTOR_B_IN1 = 3   # BIN1 - direction pin 1
-MOTOR_B_IN2 = 4   # BIN2 - direction pin 2
-MOTOR_B_PWM = 5   # PWMB - speed control
+# Motor B = Right Motor (Adafruit Motor 2)
+MOTOR_B_IN1 = 11   # Direction pin 1 (Adafruit ch11)
+MOTOR_B_IN2 = 12   # Direction pin 2 (Adafruit ch12)
+MOTOR_B_PWM = 13   # Speed control (Adafruit ch13)
+MOTOR_B_INA = 2    # Waveshare low direction channel
+MOTOR_B_INB = 3    # Waveshare low direction channel
 
 # --- Motor Calibration ---
 # Speed multiplier per motor (0.0 to 1.0)

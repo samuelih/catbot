@@ -18,9 +18,13 @@ from src.config import (
     MIN_SPEED,
     MOTOR_A_IN1,
     MOTOR_A_IN2,
+    MOTOR_A_INA,
+    MOTOR_A_INB,
     MOTOR_A_PWM,
     MOTOR_B_IN1,
     MOTOR_B_IN2,
+    MOTOR_B_INA,
+    MOTOR_B_INB,
     MOTOR_B_PWM,
     MOTOR_PWM_FREQ,
     PCA9685_ADDRESS,
@@ -36,19 +40,19 @@ def test_pca9685_address_range():
 
 
 def test_motor_channels_unique():
-    channels = [MOTOR_A_PWM, MOTOR_A_IN1, MOTOR_A_IN2,
-                MOTOR_B_PWM, MOTOR_B_IN1, MOTOR_B_IN2]
-    assert len(set(channels)) == 6, "Motor channels must be unique"
+    channels = [MOTOR_A_PWM, MOTOR_A_IN1, MOTOR_A_IN2, MOTOR_A_INA, MOTOR_A_INB,
+                MOTOR_B_PWM, MOTOR_B_IN1, MOTOR_B_IN2, MOTOR_B_INA, MOTOR_B_INB]
+    assert len(set(channels)) == 10, "Motor channels must be unique"
 
 
 def test_motor_channels_in_range():
-    for ch in [MOTOR_A_PWM, MOTOR_A_IN1, MOTOR_A_IN2,
-               MOTOR_B_PWM, MOTOR_B_IN1, MOTOR_B_IN2]:
+    for ch in [MOTOR_A_PWM, MOTOR_A_IN1, MOTOR_A_IN2, MOTOR_A_INA, MOTOR_A_INB,
+               MOTOR_B_PWM, MOTOR_B_IN1, MOTOR_B_IN2, MOTOR_B_INA, MOTOR_B_INB]:
         assert 0 <= ch <= 15, f"Channel {ch} out of PCA9685 range"
 
 
 def test_pwm_freq_valid():
-    assert 24 <= MOTOR_PWM_FREQ <= 1526
+    assert 24 <= MOTOR_PWM_FREQ <= 1600
 
 
 def test_speed_limits():

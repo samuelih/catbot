@@ -17,9 +17,13 @@ from src.config import (
     I2C_BUS,
     MOTOR_A_IN1,
     MOTOR_A_IN2,
+    MOTOR_A_INA,
+    MOTOR_A_INB,
     MOTOR_A_PWM,
     MOTOR_B_IN1,
     MOTOR_B_IN2,
+    MOTOR_B_INA,
+    MOTOR_B_INB,
     MOTOR_B_PWM,
     PCA9685_ADDRESS,
     PCA9685_ALL_LED_OFF_L,
@@ -172,33 +176,45 @@ class MotorDriver:
         self.stop()
         logger.info("Motor driver initialized")
 
-    def _set_motor(self, pwm_ch, in1_ch, in2_ch, speed, trim=1.0):
+    def _set_motor(self, pwm_ch, in1_ch, in2_ch, ina_ch, inb_ch, speed, trim=1.0):
         """Control a single motor.
 
+        The Waveshare JetBot drives direction via both Adafruit channels
+        (in1/in2) and Waveshare low channels (ina/inb) simultaneously.
+
         Args:
-            pwm_ch: PCA9685 channel for PWM speed.
-            in1_ch: PCA9685 channel for direction pin 1.
-            in2_ch: PCA9685 channel for direction pin 2.
+            pwm_ch: PCA9685 channel for PWM speed (Adafruit: 8 or 13).
+            in1_ch: Adafruit direction pin 1 (10 or 11).
+            in2_ch: Adafruit direction pin 2 (9 or 12).
+            ina_ch: Waveshare low direction channel A.
+            inb_ch: Waveshare low direction channel B.
             speed: Speed from -1.0 (reverse) to 1.0 (forward).
             trim: Speed multiplier for calibration.
         """
         speed = max(-1.0, min(1.0, speed)) * trim
+        pwm_val = int(abs(speed) * 4095)
 
         if abs(speed) < 0.01:
-            # Stop: both direction pins low, PWM off
+            # Stop: all direction pins low, PWM off
             self.pwm.set_channel_full_off(in1_ch)
             self.pwm.set_channel_full_off(in2_ch)
             self.pwm.set_channel_full_off(pwm_ch)
+            self.pwm.set_pwm(ina_ch, 0, 0)
+            self.pwm.set_pwm(inb_ch, 0, 0)
         elif speed > 0:
-            # Forward: IN1=LOW, IN2=HIGH
+            # Forward: IN1=LOW, IN2=HIGH + INA=0, INB=speed
             self.pwm.set_channel_full_off(in1_ch)
             self.pwm.set_channel_full_on(in2_ch)
             self.pwm.set_duty_cycle(pwm_ch, abs(speed))
+            self.pwm.set_pwm(ina_ch, 0, 0)
+            self.pwm.set_pwm(inb_ch, 0, pwm_val)
         else:
-            # Reverse: IN1=HIGH, IN2=LOW
+            # Reverse: IN1=HIGH, IN2=LOW + INA=speed, INB=0
             self.pwm.set_channel_full_on(in1_ch)
             self.pwm.set_channel_full_off(in2_ch)
             self.pwm.set_duty_cycle(pwm_ch, abs(speed))
+            self.pwm.set_pwm(ina_ch, 0, pwm_val)
+            self.pwm.set_pwm(inb_ch, 0, 0)
 
     def set_left(self, speed):
         """Set left motor speed.
@@ -207,7 +223,10 @@ class MotorDriver:
             speed: -1.0 (reverse) to 1.0 (forward).
         """
         from src.config import MOTOR_A_TRIM
-        self._set_motor(MOTOR_A_PWM, MOTOR_A_IN1, MOTOR_A_IN2, speed, MOTOR_A_TRIM)
+        self._set_motor(
+            MOTOR_A_PWM, MOTOR_A_IN1, MOTOR_A_IN2,
+            MOTOR_A_INA, MOTOR_A_INB, speed, MOTOR_A_TRIM,
+        )
 
     def set_right(self, speed):
         """Set right motor speed.
@@ -216,7 +235,10 @@ class MotorDriver:
             speed: -1.0 (reverse) to 1.0 (forward).
         """
         from src.config import MOTOR_B_TRIM
-        self._set_motor(MOTOR_B_PWM, MOTOR_B_IN1, MOTOR_B_IN2, speed, MOTOR_B_TRIM)
+        self._set_motor(
+            MOTOR_B_PWM, MOTOR_B_IN1, MOTOR_B_IN2,
+            MOTOR_B_INA, MOTOR_B_INB, speed, MOTOR_B_TRIM,
+        )
 
     def set_motors(self, left_speed, right_speed):
         """Set both motors simultaneously.
