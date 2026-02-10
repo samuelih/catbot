@@ -8,10 +8,9 @@ Run on the Jetson (via SSH):
 Gamepad controls (TGZ Controller):
     Left stick    - Drive (Y=forward/back, X=steering)
     Right stick   - Tank steering (overrides left stick)
-    D-pad         - Discrete forward/back/spin
-    A button      - Boost (double speed)
+    A button      - Boost (1.5x speed)
     B button      - Emergency stop
-    Start         - Quit
+    Start/Home    - Quit
 
 Keyboard fallback:
     Arrow keys    - Drive
@@ -21,20 +20,53 @@ Keyboard fallback:
 """
 
 import sys
-import os
 import select
 import tty
 import termios
 import time
+import math
 
 from src.motor.driver import MotorDriver
 from src.control.gamepad import Gamepad
 
+# --- Tuning ---
 SPEED_STEP = 0.1
 MIN_SPEED = 0.2
 MAX_SPEED = 1.0
-DEFAULT_SPEED = 0.4
-LOOP_HZ = 20
+DEFAULT_SPEED = 0.5
+LOOP_HZ = 30
+
+# Stick deadzone (ignore values below this)
+DEADZONE = 0.15
+
+# Exponential response curve: higher = more precision at low stick, more punch at full
+# 1.0 = linear, 2.0 = quadratic, 3.0 = cubic
+EXPO = 2.5
+
+# Smoothing factor: 0.0 = no smoothing (instant), 1.0 = never changes
+# Lower = more responsive, higher = smoother
+SMOOTHING = 0.4
+
+# Reduce turn sensitivity relative to forward (prevents spinning out)
+TURN_SCALE = 0.6
+
+
+def apply_deadzone(val, dz=DEADZONE):
+    """Apply deadzone and rescale so output starts at 0 just outside the zone."""
+    if abs(val) < dz:
+        return 0.0
+    sign = 1.0 if val > 0 else -1.0
+    return sign * (abs(val) - dz) / (1.0 - dz)
+
+
+def apply_expo(val, exp=EXPO):
+    """Apply exponential curve for finer low-speed control."""
+    return math.copysign(abs(val) ** exp, val)
+
+
+def lerp(current, target, factor):
+    """Linear interpolation for smooth ramping."""
+    return current + (target - current) * (1.0 - factor)
 
 
 def read_key_nonblocking():
@@ -69,6 +101,14 @@ def main():
     current = 'stop'
     source = 'gamepad' if gamepad.state.connected else 'keyboard'
 
+    # Smoothed motor outputs
+    smooth_left = 0.0
+    smooth_right = 0.0
+
+    # Keyboard target speeds (held until space/release)
+    kb_left = 0.0
+    kb_right = 0.0
+
     print("\033[2J\033[H")  # clear screen
     print("=== CatToy Drive Mode ===")
     print()
@@ -81,57 +121,56 @@ def main():
     print(f"  Speed: {speed:.0%}")
     print(f"  State: STOPPED")
     print(f"  Input: {source}")
-    print(f"  L(+0.00,+0.00) R(+0.00,+0.00)")
+    print(f"  Motors: L=+0.00  R=+0.00")
 
-    def update_display(lx=0, ly=0, rx=0, ry=0):
+    def update_display():
         print(f"\033[7;1H  Speed: {speed:.0%}   ")
         print(f"  State: {current.upper():20s}")
         print(f"  Input: {source:20s}")
-        print(f"  L({lx:+.2f},{ly:+.2f}) R({rx:+.2f},{ry:+.2f})   ")
+        print(f"  Motors: L={smooth_left:+.2f}  R={smooth_right:+.2f}   ")
         sys.stdout.flush()
 
     try:
         while True:
-            left_speed = 0.0
-            right_speed = 0.0
+            target_left = 0.0
+            target_right = 0.0
             gp = gamepad.state
 
             # --- Gamepad input ---
             if gp.connected and gamepad.has_input():
                 source = 'gamepad'
 
-                # B = emergency stop
+                # B = emergency stop (immediate, no smoothing)
                 if gp.button_b:
                     motors.stop()
+                    smooth_left = 0.0
+                    smooth_right = 0.0
                     current = 'E-STOP'
-                    update_display(gp.left_x, gp.left_y, gp.right_x, gp.right_y)
+                    update_display()
                     time.sleep(1.0 / LOOP_HZ)
                     continue
 
                 boost = 1.5 if gp.button_a else 1.0
 
-                # Left stick: arcade drive (Y=forward/back, X=turn)
-                forward = -gp.left_y  # stick up = negative Y = forward
-                turn = gp.left_x
+                # Apply deadzone + expo to stick axes
+                fwd_raw = apply_deadzone(-gp.left_y)
+                turn_raw = apply_deadzone(gp.left_x)
 
-                left_speed = (forward + turn) * speed * boost
-                right_speed = (forward - turn) * speed * boost
+                forward = apply_expo(fwd_raw) * speed * boost
+                turn = apply_expo(turn_raw) * speed * boost * TURN_SCALE
+
+                target_left = forward + turn
+                target_right = forward - turn
 
                 # Right stick overrides for tank steering
-                if abs(gp.right_x) > 0.1 or abs(gp.right_y) > 0.1:
-                    left_speed = -gp.right_y * speed * boost
-                    right_speed = -gp.right_x * speed * boost  # RZ maps to right Y
+                ry = apply_deadzone(-gp.right_y)
+                rx = apply_deadzone(-gp.right_x)
+                if abs(ry) > 0 or abs(rx) > 0:
+                    target_left = apply_expo(ry) * speed * boost
+                    target_right = apply_expo(rx) * speed * boost
 
-                left_speed = max(-1.0, min(1.0, left_speed))
-                right_speed = max(-1.0, min(1.0, right_speed))
-
-                motors.set_motors(left_speed, right_speed)
-                if abs(left_speed) > 0.01 or abs(right_speed) > 0.01:
-                    current = f'L={left_speed:+.1f} R={right_speed:+.1f}'
-                else:
-                    current = 'stop'
-
-                update_display(gp.left_x, gp.left_y, gp.right_x, gp.right_y)
+                target_left = max(-1.0, min(1.0, target_left))
+                target_right = max(-1.0, min(1.0, target_right))
 
             # --- Keyboard input ---
             key = read_key_nonblocking()
@@ -141,26 +180,48 @@ def main():
                 if key in ('q', 'Q', 'ESC'):
                     break
                 elif key == 'UP':
-                    motors.set_motors(speed, speed)
-                    current = 'forward'
+                    kb_left = speed
+                    kb_right = speed
                 elif key == 'DOWN':
-                    motors.set_motors(-speed, -speed)
-                    current = 'reverse'
+                    kb_left = -speed
+                    kb_right = -speed
                 elif key == 'LEFT':
-                    motors.set_motors(-speed, speed)
-                    current = 'spin left'
+                    kb_left = -speed
+                    kb_right = speed
                 elif key == 'RIGHT':
-                    motors.set_motors(speed, -speed)
-                    current = 'spin right'
+                    kb_left = speed
+                    kb_right = -speed
                 elif key in ('w', 'W'):
                     speed = min(MAX_SPEED, round(speed + SPEED_STEP, 1))
                 elif key in ('s', 'S'):
                     speed = max(MIN_SPEED, round(speed - SPEED_STEP, 1))
                 elif key == ' ':
-                    motors.stop()
-                    current = 'stop'
+                    kb_left = 0.0
+                    kb_right = 0.0
 
-                update_display(gp.left_x, gp.left_y, gp.right_x, gp.right_y)
+            # Use keyboard targets if gamepad isn't active
+            if not (gp.connected and gamepad.has_input()):
+                target_left = kb_left
+                target_right = kb_right
+
+            # --- Smooth ramp toward target ---
+            smooth_left = lerp(smooth_left, target_left, SMOOTHING)
+            smooth_right = lerp(smooth_right, target_right, SMOOTHING)
+
+            # Snap to zero if very close (prevents motor whine at near-zero)
+            if abs(smooth_left) < 0.05:
+                smooth_left = 0.0
+            if abs(smooth_right) < 0.05:
+                smooth_right = 0.0
+
+            motors.set_motors(smooth_left, smooth_right)
+
+            if abs(smooth_left) > 0.01 or abs(smooth_right) > 0.01:
+                current = f'L={smooth_left:+.2f} R={smooth_right:+.2f}'
+            else:
+                current = 'stop'
+
+            update_display()
 
             # Check Start button for quit
             if gp.connected and gp.button_home:
