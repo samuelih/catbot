@@ -24,7 +24,7 @@ def check_i2c():
 
         devices = {
             0x3C: "SSD1306 OLED Display",
-            0x40: "PCA9685 PWM Controller (motors)",
+            0x60: "PCA9685 PWM Controller (motors)",
             0x41: "INA219 Battery Monitor",
             0x70: "PCA9685 ALL CALL",
         }
@@ -52,7 +52,7 @@ def check_i2c():
         for addr, name in devices.items():
             if addr not in [a for a, _ in found]:
                 print(f"  [MISS] 0x{addr:02X} - {name} NOT FOUND")
-                if addr == 0x40:
+                if addr == 0x60:
                     all_ok = False  # PCA9685 is critical
 
         return all_ok

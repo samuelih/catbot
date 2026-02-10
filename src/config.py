@@ -7,7 +7,7 @@ are defined here. Change these values to calibrate your specific robot.
 
 # --- I2C ---
 I2C_BUS = 1
-PCA9685_ADDRESS = 0x40
+PCA9685_ADDRESS = 0x60
 
 # --- PCA9685 Registers ---
 PCA9685_MODE1 = 0x00

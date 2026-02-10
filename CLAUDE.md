@@ -10,7 +10,7 @@ CatToy is an autonomous cat toy robot built on the Waveshare JetBot 2GB AI Kit (
 
 - **Board**: NVIDIA Jetson Nano 2GB Developer Kit (JetPack 4.6.6, Ubuntu 18.04, kernel 4.9.x-tegra)
 - **Camera**: IMX219-160 (160-degree FOV, CSI interface)
-- **Motors**: 2x JGB37-520 DC motors via PCA9685 PWM (I2C 0x40) + TB6612FNG dual H-bridge
+- **Motors**: 2x JGB37-520 DC motors via PCA9685 PWM (I2C 0x60) + TB6612FNG dual H-bridge
 - **WiFi**: Comfast CF-811AC V3 USB adapter (RTL8811CU chipset, driver: ColdZoo/rtl8821cu-nvidia-jetson-nano)
 - **Power**: 3x 18650 batteries (11.1V nominal)
 - **Gamepad**: Wireless USB gamepad (manual override)
@@ -77,7 +77,7 @@ src/
 
 - 2GB RAM — requires 4GB swap, disable desktop GUI, only one model loaded at a time
 - CSI camera at `/dev/video0`; must use `nvarguscamerasrc` GStreamer element
-- I2C bus 1 (`/dev/i2c-1`): PCA9685 at 0x40, INA219 at 0x41, SSD1306 at 0x3C
+- I2C bus 1 (`/dev/i2c-1`): PCA9685 at 0x60, INA219 at 0x41, SSD1306 at 0x3C
 - WiFi adapter needs `usb_modeswitch` (device appears as CD-ROM 0bda:1a2b before switching to 0bda:c811)
 - JetPack 4.6.6 is EOL; kernel 4.9.x means many upstream drivers need backported forks
 

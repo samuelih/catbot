@@ -142,7 +142,7 @@ To see the OLED display status:
 
 ### Robot doesn't move
 1. Check batteries are charged (`python3 scripts/diagnostics/check_hardware.py`)
-2. Verify I2C: `sudo i2cdetect -y -r 1` (should show 0x40)
+2. Verify I2C: `sudo i2cdetect -y -r 1` (should show 0x60)
 3. Test motors directly: `python3 scripts/diagnostics/test_motors.py`
 
 ### Camera shows black/no detection

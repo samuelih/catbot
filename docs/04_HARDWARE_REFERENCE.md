@@ -42,7 +42,7 @@ bus = smbus2.SMBus(1)  # Bus 1
 | Address | Device | Function |
 |---------|--------|----------|
 | 0x3C | SSD1306 | 128x32 OLED display |
-| 0x40 | PCA9685 | 16-channel PWM controller (motors) |
+| 0x60 | PCA9685 | 16-channel PWM controller (motors) |
 | 0x41 | INA219 | Battery voltage/current monitor |
 | 0x70 | PCA9685 | ALL CALL broadcast address |
 
@@ -61,7 +61,7 @@ The expansion board sits on top of the Jetson Nano and provides:
 
 ### PCA9685 PWM Controller
 
-- I2C address: **0x40** (default)
+- I2C address: **0x60**
 - 16 channels, 12-bit resolution (0-4095)
 - Internal oscillator: 25 MHz
 - PWM frequency range: 24 Hz - 1526 Hz

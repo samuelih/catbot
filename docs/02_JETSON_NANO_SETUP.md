@@ -373,11 +373,11 @@ sudo i2cdetect -y -r 1
 
 You should see devices at these addresses:
 - `0x3c` = OLED display (SSD1306)
-- `0x40` = PWM controller (PCA9685)
+- `0x60` = PWM controller (PCA9685)
 - `0x41` = Battery monitor (INA219)
 - `0x70` = PCA9685 ALL CALL address
 
-If you don't see `0x40`, the expansion board is not properly connected.
+If you don't see `0x60`, the expansion board is not properly connected.
 
 ## Add Swap Space
 
